@@ -82,17 +82,11 @@ CUDA_VISIBLE_DEVICES=0 python -u test_demo.py \
 
 If you find this code is useful for your research, please cite:
 ```
-@inproceedings{10.1145/3503161.3548329,
-author = {Sun, Wei and Min, Xiongkuo and Lu, Wei and Zhai, Guangtao},
+@inproceedings{sun2022a,
 title = {A Deep Learning Based No-Reference Quality Assessment Model for UGC Videos},
+author = {Sun, Wei and Min, Xiongkuo and Lu, Wei and Zhai, Guangtao},
+booktitle={Proceedings of the 30th ACM International Conference on Multimedia},
 year = {2022},
-isbn = {9781450392037},
-publisher = {Association for Computing Machinery},
-address = {New York, NY, USA},
-url = {https://doi.org/10.1145/3503161.3548329},
-doi = {10.1145/3503161.3548329},
 pages = {856–865},
-numpages = {10},
-series = {MM '22}
 }
 ```
