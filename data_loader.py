@@ -169,6 +169,140 @@ class VideoDataset_images_with_motion_features(data.Dataset):
        
         return transformed_video, transformed_feature, video_score, video_name
 
+    
+ 
+
+
+
+
+
+
+
+class VideoDataset_images_VQA_dataset_with_motion_features(data.Dataset):
+    """Read data from the original dataset for feature extraction"""
+    def __init__(self, data_dir, data_dir_3D ,filename_path, transform, database_name, crop_size, feature_type, exp_id, state = 'train'):
+        super(VideoDataset_images_VQA_dataset_with_motion_features, self).__init__()
+
+        if database_name == 'KoNViD-1k':
+            dataInfo = scio.loadmat(filename_path)
+            n = len(dataInfo['video_names'])
+            video_names = []
+            score = []
+            index_all = dataInfo['index'][exp_id]
+            if state == 'train':
+                index = index_all[:int(n*0.8)]
+            elif state == 'val':
+                index = index_all[int(n*0.8):]
+
+            for i in index:
+                video_names.append(dataInfo['video_names'][i][0][0])
+                score.append(dataInfo['scores'][i][0])
+            self.video_names = video_names
+            self.score = score
+
+        elif database_name == 'youtube_ugc':
+            dataInfo = scio.loadmat(filename_path)
+            n = len(dataInfo['video_names'])
+            video_names = []
+            score = []
+            index_all = dataInfo['index'][exp_id]
+            if state == 'train':
+                index = index_all[:int(n*0.8)]
+            elif state == 'val':
+                index = index_all[int(n*0.8):]
+
+            for i in index:
+                video_names.append(dataInfo['video_names'][i][0][0])
+                score.append(dataInfo['scores'][0][i])
+            self.video_names = video_names
+            self.score = score
+
+
+        self.crop_size = crop_size
+        self.videos_dir = data_dir
+        self.data_dir_3D = data_dir_3D
+        self.transform = transform
+        self.length = len(self.video_names)
+        self.feature_type = feature_type
+        self.database_name = database_name
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, idx):
+        video_name = self.video_names[idx]
+        video_name_str = video_name[:-4]
+        video_score = torch.FloatTensor(np.array(float(self.score[idx])))
+
+        path_name = os.path.join(self.videos_dir, video_name_str)
+
+        video_channel = 3
+
+        video_height_crop = self.crop_size
+        video_width_crop = self.crop_size
+       
+        if self.database_name == 'KoNViD-1k':
+            video_length_read = 8
+        elif self.database_name == 'youtube_ugc':
+            video_length_read = 10
+
+        transformed_video = torch.zeros([video_length_read, video_channel, video_height_crop, video_width_crop])             
+
+
+        for i in range(video_length_read):
+            if self.database_name == 'youtube_ugc':
+                imge_name = os.path.join(path_name, '{:03d}'.format(i*2) + '.png')
+            else:
+                imge_name = os.path.join(path_name, '{:03d}'.format(i) + '.png')
+            read_frame = Image.open(imge_name)
+            read_frame = read_frame.convert('RGB')
+            read_frame = self.transform(read_frame)
+            transformed_video[i] = read_frame
+
+        # read 3D features
+        if self.feature_type == 'Slow':
+            feature_folder_name = os.path.join(self.data_dir_3D, video_name_str)
+            transformed_feature = torch.zeros([video_length_read, 2048])
+            for i in range(video_length_read):
+                if self.database_name == 'KoNViD-1k':
+                    i_index = i
+                elif self.database_name == 'youtube_ugc':
+                    i_index = int(i/2)   
+                feature_3D = np.load(os.path.join(feature_folder_name, 'feature_' + str(i_index) + '_slow_feature.npy'))
+                feature_3D = torch.from_numpy(feature_3D)
+                feature_3D = feature_3D.squeeze()
+                transformed_feature[i] = feature_3D
+        elif self.feature_type == 'Fast':
+            feature_folder_name = os.path.join(self.data_dir_3D, video_name_str)
+            transformed_feature = torch.zeros([video_length_read, 256])
+            for i in range(video_length_read):
+                if self.database_name == 'KoNViD-1k':
+                    i_index = i
+                elif self.database_name == 'youtube_ugc':
+                    i_index = int(i/2) 
+                feature_3D = np.load(os.path.join(feature_folder_name, 'feature_' + str(i_index) + '_fast_feature.npy'))
+                feature_3D = torch.from_numpy(feature_3D)
+                feature_3D = feature_3D.squeeze()
+                transformed_feature[i] = feature_3D
+        elif self.feature_type == 'SlowFast':
+            feature_folder_name = os.path.join(self.data_dir_3D, video_name_str)
+            transformed_feature = torch.zeros([video_length_read, 2048+256])
+            for i in range(video_length_read):
+                if self.database_name == 'KoNViD-1k':
+                    i_index = i
+                elif self.database_name == 'youtube_ugc':
+                    i_index = int(i/2) 
+                feature_3D_slow = np.load(os.path.join(feature_folder_name, 'feature_' + str(i_index) + '_slow_feature.npy'))
+                feature_3D_slow = torch.from_numpy(feature_3D_slow)
+                feature_3D_slow = feature_3D_slow.squeeze()
+                feature_3D_fast = np.load(os.path.join(feature_folder_name, 'feature_' + str(i_index) + '_fast_feature.npy'))
+                feature_3D_fast = torch.from_numpy(feature_3D_fast)
+                feature_3D_fast = feature_3D_fast.squeeze()
+                feature_3D = torch.cat([feature_3D_slow, feature_3D_fast])
+                transformed_feature[i] = feature_3D
+
+       
+        return transformed_video, transformed_feature, video_score, video_name
 
 
 class VideoDataset_NR_LSVQ_SlowFast_feature(data.Dataset):
